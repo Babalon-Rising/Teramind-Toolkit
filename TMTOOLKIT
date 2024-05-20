@@ -1,0 +1,197 @@
+
+
+<# 
+
+.NOTES
+    Author         : David Collins 
+    Email          : Davidc@systechmsp.com
+    Version        : 00.00.2
+
+.CHANGELOG
+    - V.001 (5/8/2024) Menu and Framework for functions created. I started this at home, so I wasn't able to get stuff like TM Agent downloads and the such. // DavidC@Systechmsp.com
+    = V.002 (5/8/2024) Fucked error in TM Install. Implemented TM Remover function. 
+
+
+.FEATURES
+    - Install Teramind, provided the Installation link and Instance ID.  
+    - Uninstall Teramind, provided the uninstallation pin.  
+    - Gather information on current Teramind installation (Version, installation date, Stealth or Revealed Agent)
+
+#>
+
+<#
+ 
+
+
+#>
+
+
+# =================== FUNCTIONS =================== 
+
+function Show-Menu
+{
+<#
+    .DESCRIPTION
+    This function is simply used to create the meny from which all other options are available.
+#>
+
+     param (
+           [string]$Title = ‘Teramind Toolkit v.01 by Systech MSP’
+     )
+     Clear-Host
+     Write-Host “================ $Title ================”
+     Get-TMInfoMenu
+     Write-Host " " 
+     Write-Host “1: Install Teramind Agent”
+     Write-Host “2: Uninstall Teramind Agent (WIP)”
+     Write-Host “3: Collect Information (WIP)”
+     Write-Host “Q: Press ‘Q’ to quit.”
+
+}
+
+function Install-Teramind {
+<#
+    .DESCRIPTION
+    This is used to install Teramind. The analyst using this will need a Download Link and Instance ID from the client's TM Dashboard.
+#>
+    Write-Host "Installing Teramind..."
+    Write-Host "Please provide the Download Link of the Agent and Instance ID of the client"
+
+    $AgentURL = Read-Host -prompt 'Agent URL'
+    $InstanceID = Read-Host -Prompt 'Instance ID'
+    
+    
+    Write-Host "This is where you'd download and install Teramind"
+
+    Invoke-WebRequest -Uri $AgentURL -OutFile $DLPath
+    msiexec /i $Installpath /qn
+
+    if (Test-Path $Installpath){
+        clear-host
+        Write-Host 'Teramind has been successfully installed!'
+    }else{
+        clear-host
+        Write-Host 'There was an error and Teramind wasnt installed. Please check link and Instance ID'
+        Write-Host 'The Download link provided was: ' $AgentURL
+        Write-Host 'The Instance ID provided was: ' $InstanceID
+        }
+    }
+
+function Remove-Teramind {
+<#
+    .DESCRIPTION
+    Removes Teramind from a given workstation, using the t-remover app provided by Teramind. For most clients, an Uninstallation PIN will be needed.
+#>
+    $UninstallConfirm = Read-Host -Prompt 'Are you sure that you would like to uninstall Teramind? (Y/N)'
+
+    if ($UninstallConfirm -eq 'Y'){
+
+        $RemoverDL = 'https://teramind.co/d/teramind-remover.exe'
+        $RemoverPath = "$env:ALLUSERSPROFILE"
+        $RemoverPIN = Read-Host -Prompt 'Please enter the Uninstallation Key'
+        
+        Write-Host 'Uninstalling Teramind...'
+         Invoke-WebRequest $RemoverDL -outfile $env:ALLUSERSPROFILE #Download Teramind Remover
+         msiexec /x $RemoverPath PASSWORD=$RemoverPIN /qn
+        
+        if (test-path $InstallPath and test-path $RemoverDL) {
+            Write-host 'There was an error uninstalling Teramind. Please review the Uninstallation PIN and try again'
+        } elseif (test-path $installpath and !(test-path $RemoverDL)) {
+            Write-host  'There was an error downloading the Teramind Remover. Check your internet connection and try again...'
+        } elseif (!(test-path $installpath)) {
+            Write-Host  'Teramind was successfully removed.'
+            } 
+
+        }
+    }
+
+Function Get-TMInfoMenu{
+<#
+    .DESCRIPTION
+        This is used to compile and present information relevant to TM on the machine. This does not gather the information, but compiles it.
+
+#>
+ 
+    $ServiceStatus = Get-Service Spooler # Used to determine if Teramind is currently running.
+    
+    Write-Host " " 
+    $ComputerOS
+    $TMService
+    $InstallStatus 
+    Write-Host " "
+
+     
+    if (test-path $InstallPath){
+        $InstallStatus = Write-Host "Agent : Installed" -ForegroundColor Green
+    }else{
+        $InstallStatus = Write-Host "Agent : Not Installed" -ForegroundColor Red
+        }
+
+    if ($ServiceStatus.Status -eq "Running"){
+        $TMService = Write-Host "Service :"$ServiceStatus.Status -ForegroundColor Green
+        }
+    elseif ($ServiceStatus.Status -eq "Stopped"){
+        $TMService = Write-Host "Service :"$ServiceStatus.Status -ForegroundColor Red
+        }
+    }
+
+Function Get-TMStats {
+<#
+    [CORE FUNCTION]
+    .DESCRIPTION 
+     This part is used to generate basic diagnostic information that will help inform the analyst of the context of Teramind on that mahcine. 
+     Information should include:
+        - Agent install status 
+        - Agent Version
+        - Kind of Agent installed ('Stealth', 'Revealed' or 'No Agent Detected')
+    
+    On the backend, it should also begin managing info used to save info needed for variables, which can be referenced in other functions. 
+
+#>
+    if (test-path $InstallPath){
+        $Status = Write-Host "Agent Installed" -ForegroundColor Green
+    }else{
+        $Status = Write-Host "Agent Not Installed" -ForegroundColor Red
+        }
+    }
+ 
+
+Function Get-TMLogs {
+    Invoke-WebRequest -Uri https://www.teramind.co/d/tmdiag.zip -OutFile $env:TEMP\tmdiag.zip
+    Expand-Archive -Path $env:Temp\tmdiag.zip
+    & $env:TEMP\tmdiag\tmdiag.exe log agent on #Turns on the logging agent. 
+    & $env:TEMP\tmdiag\tmdiag.exe log svc on restart #Startes logging when computer restarts
+}
+
+# =================== GLOBAL VARIABLES =================== 
+
+$InstallPath = 'C:\ProgramData\{4CEC2908-5CE4-48F0-A717-8FC833D8017A}'
+$DLPath = "$env:TEMP\Agent.msi"
+$ServiceStatus = Get-Service Spooler #this service is just a placeholder. It should be tsvchst
+$ComputerOS = [Environment]::OSVersion
+
+
+# =================== PRODUCTION =================== 
+
+do
+{
+     Show-Menu
+     $MInput = Read-Host “Please make a selection”
+     switch ($Minput)
+     {
+           ‘1’ {
+                clear-host
+                Install-Teramind
+           } ‘2’ {
+                clear-host
+                Remove-Teramind
+           } ‘3’ {
+                clear-host
+                Get-TMLogs
+           } ‘q’ {
+                clear-host
+                return
+           }
+     }
+     pause
+}until ($MInput -eq ‘q’)
