@@ -1,5 +1,4 @@
 <# 
-
 .NOTES
     Author         : David Collins 
     Email          : Davidc@systechmsp.com
@@ -14,15 +13,7 @@
     - Install Teramind, provided the Installation link and Instance ID.  
     - Uninstall Teramind, provided the uninstallation pin.  
     - Gather information on current Teramind installation (Version, installation date, Stealth or Revealed Agent)
-
 #>
-
-<#
- 
-
-
-#>
-
 
 # =================== FUNCTIONS =================== 
 
